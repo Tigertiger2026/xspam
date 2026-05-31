@@ -1,39 +1,25 @@
 <script lang="ts">
-  import { dbApi, type User } from '$lib/db'
+  import { dbApi, dbStore, compatSpamUser, type User } from '$lib/db'
   import { ADataTable } from '$lib/components/logic/a-data-table'
   import { Input } from '$lib/components/ui/input'
   import { filterUser, type SearchParams } from './utils/filterUser'
   import SelectFilter from './components/SelectFilter.svelte'
   import { type LabelValue } from './components/SelectFilter.types'
-  import { extractCurrentUserId } from '$lib/observe'
-  import { blockUser, unblockUser } from '$lib/api/twitter'
-  import { debounce, groupBy } from 'es-toolkit'
-  import { buttonVariants } from '$lib/components/ui/button'
+  import { debounce } from 'es-toolkit'
+  import { Button } from '$lib/components/ui/button'
   import {
-    DownloadIcon,
-    EyeIcon,
-    MenuIcon,
     ShieldBanIcon,
     ShieldCheckIcon,
+    DownloadIcon,
   } from 'lucide-svelte'
   import { toast } from 'svelte-sonner'
-  import { serializeError } from 'serialize-error'
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
-  import { shadcnConfig } from '$lib/components/logic/config'
-  import TableExtraButton from '$lib/components/logic/TableExtraButton.svelte'
-  import { navigate } from '$lib/components/logic/router'
   import { userColumns } from './utils/columns'
   import { t } from '$lib/i18n'
-  import { batchBlockUsersMutation } from '$lib/hooks/batchBlockUsers'
-  import { searchPeople } from '$lib/api/twitter'
-  import { confirmToast } from '$lib/components/custom/toast'
-  import { selectImportFile } from '$lib/hooks/batchBlockUsers'
+  import { blockUser, unblockUser } from '$lib/api/twitter'
+  import { batchBlockUsersMutation, selectImportFile } from '$lib/hooks/batchBlockUsers'
 
   /**
    * XSpam Client - Search and Block Page
-   * 
-   * 精简版：移除了 @tanstack/svelte-query 依赖
-   * 直接使用 dbApi 操作本地数据
    */
 
   // 状态管理
@@ -57,15 +43,42 @@
   let isBlocking = $state(false)
 
   // 行数据
-  let rows = $derived(filterUser(users, searchParams))
+  let rows = $derived(users.filter(u => filterUser(u, searchParams)))
 
   // 加载数据
   async function loadUsers() {
     isLoading = true
     error = null
     try {
+      const tx = dbStore.idb.transaction('spamUsers', 'readonly')
+      const store = tx.objectStore('spamUsers')
+      const allSpam = await store.getAll()
+      await tx.done
+
+      const compatSpam = allSpam.map(compatSpamUser).filter((it: any) => it.hideStatus === 'active')
+      const spamMap = new Map()
+      compatSpam.forEach((u: any) => {
+        spamMap.set(u.userId || u.id, {
+          id: u.userId || u.id,
+          screen_name: u.handle || u.id,
+          name: u.displayName || u.handle || u.id,
+          profile_image_url: u.avatarUrl,
+          blocking: true,
+          source: u.source,
+          updated_at: u.updated_at
+        })
+      })
+
       const allUsers = await dbApi.users.getAll(10000)
-      users = allUsers.filter(u => u.blocking)
+      allUsers.filter((u: any) => u.blocking).forEach((u: any) => {
+        if (!spamMap.has(u.id)) {
+           spamMap.set(u.id, u)
+        } else {
+           const existing = spamMap.get(u.id)
+           spamMap.set(u.id, { ...existing, ...u, blocking: true })
+        }
+      })
+      users = Array.from(spamMap.values())
     } catch (err) {
       error = String(err)
       toast.error('加载用户列表失败')
@@ -96,15 +109,15 @@
 
   // 筛选选项
   const blockingOptions: LabelValue<'all' | 'blocked' | 'unblocked'>[] = [
-    { value: 'all', label: $t('searchAndBlock.filter.all') },
-    { value: 'blocked', label: $t('searchAndBlock.filter.blocked') },
-    { value: 'unblocked', label: $t('searchAndBlock.filter.unblocked') },
+    { value: 'all', label: $t('search-and-block.filter.all') },
+    { value: 'blocked', label: $t('search-and-block.filter.blocking.blocked') },
+    { value: 'unblocked', label: $t('search-and-block.filter.blocking.unblocked') },
   ]
   const labelOptions: LabelValue<'all' | 'manual' | 'cloud' | 'imported'>[] = [
-    { value: 'all', label: $t('searchAndBlock.filter.all') },
-    { value: 'manual', label: $t('searchAndBlock.filter.manual') },
-    { value: 'cloud', label: $t('searchAndBlock.filter.cloud') },
-    { value: 'imported', label: $t('searchAndBlock.filter.imported') },
+    { value: 'all', label: $t('search-and-block.filter.all') },
+    { value: 'manual', label: '手动屏蔽' },
+    { value: 'cloud', label: '云端同步' },
+    { value: 'imported', label: '导入' },
   ]
   
   // 列定义
@@ -116,7 +129,12 @@
     'blocking',
   ])
   let visibleColumns = $derived(
-    allColumns.filter((it) => visibleColumnsKeys.includes(it.dataIndex as string)),
+    allColumns
+      .filter((it) => visibleColumnsKeys.includes(it.dataIndex as string))
+      .map(col => ({
+        ...col,
+        title: $t(col.title)
+      }))
   )
 
   // 批量解除屏蔽
@@ -177,14 +195,14 @@
 
   // 导入用户
   async function importUsers() {
-    const users = await selectImportFile()
-    if (!users) return
+    const importedUsers = await selectImportFile()
+    if (!importedUsers) return
     const controller = new AbortController()
     isBlocking = true
     try {
       await batchBlockUsersMutation({
         controller,
-        users: () => users,
+        users: () => importedUsers as User[],
         blockUser: async (u) => {
           try {
             await blockUser({ id: u.id })
@@ -204,76 +222,49 @@
     }
   }
 
-  // 导出选中用户
-  function exportSelected() {
-    const data = JSON.stringify(selectedUsers, null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `blocked-users-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success(`已导出 ${selectedUsers.length} 个用户`)
-  }
 </script>
 
 <div class="flex flex-col gap-2 p-4">
   <div class="flex items-center gap-2">
     <Input
-      placeholder={$t('searchAndBlock.search.name')}
+      placeholder={$t('search-and-block.search.placeholder')}
       bind:value={search.name}
-      class="w-48"
+      class="w-48 bg-zinc-900/50 border-zinc-800"
     />
     <Input
-      placeholder={$t('searchAndBlock.search.screenName')}
+      placeholder={$t('search-and-block.search.placeholder')}
       bind:value={search.screenName}
-      class="w-48"
+      class="w-48 bg-zinc-900/50 border-zinc-800"
     />
     <SelectFilter
-      label={$t('searchAndBlock.filter.blockingLabel')}
+      label={$t('search-and-block.filter.blocking')}
       options={blockingOptions}
       bind:selected={search.blocking}
       onChange={(value) => {
-        searchParams = { ...searchParams, blocking: value }
+        searchParams = { ...searchParams, filterBlocked: value }
       }}
     />
     <SelectFilter
-      label={$t('searchAndBlock.filter.sourceLabel')}
+      label="来源"
       options={labelOptions}
       bind:selected={search.label}
       onChange={(value) => {
         searchParams = { ...searchParams, label: value }
       }}
     />
-    <div class="ml-auto">
-      <TableExtraButton
-        {allColumns}
-        bind:visibleColumns={visibleColumnsKeys}
-        onExport={exportSelected}
-        exportDisabled={selectedUsers.length === 0}
-      >
-        {#snippet buttons()}
-          <DropdownMenu.Item onclick={importUsers}>
-            <DownloadIcon class="w-4 h-4 mr-2" />
-            {$t('searchAndBlock.importUsers')}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item 
-            onclick={batchUnblock}
-            disabled={selectedUsers.length === 0 || isBlocking}
-          >
-            <ShieldCheckIcon class="w-4 h-4 mr-2" />
-            {$t('searchAndBlock.batchUnblock')}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item 
-            onclick={batchReblock}
-            disabled={selectedUsers.length === 0 || isBlocking}
-          >
-            <ShieldBanIcon class="w-4 h-4 mr-2" />
-            {$t('searchAndBlock.batchReblock')}
-          </DropdownMenu.Item>
-        {/snippet}
-      </TableExtraButton>
+    <div class="ml-auto flex gap-2">
+      <Button variant="outline" size="sm" onclick={importUsers} class="bg-zinc-900/50 border-zinc-800 hover:bg-zinc-800">
+        <DownloadIcon class="w-4 h-4 mr-2" />
+        {$t('search-and-block.actions.importBlockList')}
+      </Button>
+      <Button variant="outline" size="sm" onclick={batchUnblock} disabled={selectedUsers.length === 0 || isBlocking} class="bg-zinc-900/50 border-zinc-800 hover:bg-zinc-800">
+        <ShieldCheckIcon class="w-4 h-4 mr-2" />
+        {$t('search-and-block.actions.unblockSelected')}
+      </Button>
+      <Button variant="outline" size="sm" onclick={batchReblock} disabled={selectedUsers.length === 0 || isBlocking} class="bg-zinc-900/50 border-zinc-800 hover:bg-zinc-800">
+        <ShieldBanIcon class="w-4 h-4 mr-2" />
+        {$t('search-and-block.actions.blockSelected')}
+      </Button>
     </div>
   </div>
   

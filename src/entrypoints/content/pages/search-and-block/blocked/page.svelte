@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { dbApi, type User } from '$lib/db'
+  import { dbApi, dbStore, compatSpamUser, type User } from '$lib/db'
   import { ADataTable } from '$lib/components/logic/a-data-table'
   import { Input } from '$lib/components/ui/input'
   import { Button } from '$lib/components/ui/button'
   import { debounce } from 'es-toolkit'
-  import { ShieldCheckIcon, DownloadIcon } from 'lucide-svelte'
+  import { ShieldCheckIcon } from 'lucide-svelte'
   import { toast } from 'svelte-sonner'
   import { userColumns } from '../utils/columns'
   import { t } from '$lib/i18n'
@@ -13,8 +13,6 @@
 
   /**
    * XSpam Client - Blocked Users Page
-   * 
-   * 精简版：移除 @tanstack/svelte-query 依赖
    */
 
   // 状态
@@ -33,7 +31,12 @@
     'blocking',
   ])
   let visibleColumns = $derived(
-    allColumns.filter((it) => visibleColumnsKeys.includes(it.dataIndex as string))
+    allColumns
+      .filter((it) => visibleColumnsKeys.includes(it.dataIndex as string))
+      .map(col => ({
+        ...col,
+        title: $t(col.title)
+      }))
   )
 
   // 过滤后的数据
@@ -52,10 +55,37 @@
   async function loadUsers() {
     isLoading = true
     try {
-      const all = await dbApi.users.getAll(10000)
-      users = all.filter(u => u.blocking)
+      const tx = dbStore.idb.transaction('spamUsers', 'readonly')
+      const store = tx.objectStore('spamUsers')
+      const allSpam = await store.getAll()
+      await tx.done
+
+      const compatSpam = allSpam.map(compatSpamUser).filter((it: any) => it.hideStatus === 'active')
+      const spamMap = new Map()
+      compatSpam.forEach((u: any) => {
+        spamMap.set(u.userId || u.id, {
+          id: u.userId || u.id,
+          screen_name: u.handle || u.id,
+          name: u.displayName || u.handle || u.id,
+          profile_image_url: u.avatarUrl,
+          blocking: true,
+          updated_at: u.updated_at
+        })
+      })
+
+      const allUsers = await dbApi.users.getAll(10000)
+      allUsers.filter((u: any) => u.blocking).forEach((u: any) => {
+        if (!spamMap.has(u.id)) {
+           spamMap.set(u.id, u)
+        } else {
+           const existing = spamMap.get(u.id)
+           spamMap.set(u.id, { ...existing, ...u, blocking: true })
+        }
+      })
+      users = Array.from(spamMap.values())
     } catch (err) {
       toast.error('加载失败')
+      console.error(err)
     } finally {
       isLoading = false
     }
@@ -100,46 +130,27 @@
       isUnblocking = false
     }
   }
-
-  // 导出
-  function exportUsers() {
-    const data = JSON.stringify(users, null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `blocked-users-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success(`已导出 ${users.length} 个用户`)
-  }
 </script>
 
 <div class="p-4 space-y-4">
   <div class="flex items-center gap-2">
     <Input
-      placeholder={$t('searchAndBlock.search.name')}
+      placeholder={$t('search-and-block.search.placeholder')}
       bind:value={searchName}
-      class="w-64"
+      class="w-64 bg-zinc-900/50 border-zinc-800"
     />
     <Button
       variant="outline"
-      onclick={batchUnblock}
+      size="sm"
       disabled={selectedUsers.length === 0 || isUnblocking}
+      onclick={batchUnblock}
+      class="gap-2 bg-zinc-900/50 border-zinc-800 hover:bg-zinc-800"
     >
-      <ShieldCheckIcon class="w-4 h-4 mr-2" />
-      {$t('searchAndBlock.batchUnblock')}
+      <ShieldCheckIcon class="w-4 h-4" />
+      {$t('search-and-block.actions.unblockSelected')}
       {#if selectedUsers.length > 0}
         ({selectedUsers.length})
       {/if}
-    </Button>
-    <Button
-      variant="outline"
-      onclick={exportUsers}
-      class="ml-auto"
-    >
-      <DownloadIcon class="w-4 h-4 mr-2" />
-      {$t('common.export')}
     </Button>
   </div>
 
