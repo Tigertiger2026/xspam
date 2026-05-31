@@ -85,15 +85,17 @@ function loggerUsers(): FetchMiddleware {
         return
       }
       console.debug('loggerUsers', c.req.url, users)
-      await dbApi.users.record(users)
+      const userIds = users.map((it) => it.id)
+      
+      // We must await refreshSpamUsers on the critical path so that subsequent middlewares 
+      // (like handleTweets) have the updated spamContext.spamUsers when they run synchronously.
+      await refreshSpamUsers(userIds)
+
       requestAnimationFrame(async () => {
+        await dbApi.users.record(users)
         if (getSettings().hideSpamAccounts) {
-          await dbApi.pendingCheckUsers.record(users.map((it) => it.id))
+          await dbApi.pendingCheckUsers.record(userIds)
         }
-        await Promise.all([
-          refreshSpamUsers(users.map((it) => it.id)),
-          // Removed refreshSubscribedModLists
-        ])
         handleUsers(users)
       })
     }
