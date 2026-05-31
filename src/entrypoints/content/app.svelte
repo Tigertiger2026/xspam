@@ -48,11 +48,16 @@
 
   const root = $derived(portalRoot ?? document.body)
 
-  // TODO https://github.com/svecosystem/mode-watcher/issues/104
   $effect(() => {
     const current = $mode
     if (root) {
-      root.className = `color-scheme: ${current}`
+      if (current === 'dark') {
+        root.classList.add('dark')
+        root.classList.remove('light')
+      } else {
+        root.classList.add('light')
+        root.classList.remove('dark')
+      }
     }
   })
 
@@ -111,18 +116,8 @@
     {routes}
   >
     {#if standalone || openState.opened}
-      <AppLayout open={standalone || openState.open} {standalone}>
+      <AppLayout open={standalone || openState.open} {standalone} onClose={!standalone ? openState.closeModal : undefined}>
         <RouterView />
-        {#if !standalone}
-          <Button
-            variant="ghost"
-            size="icon"
-            class="absolute top-0 right-0"
-            onclick={openState.closeModal}
-          >
-            <XIcon class="w-4 h-4" />
-          </Button>
-        {/if}
       </AppLayout>
     {/if}
   </Router>

@@ -25,7 +25,7 @@
   let isUnblocking = $state(false)
 
   // 列定义
-  const allColumns = userColumns({ t })
+  const allColumns = userColumns
   let visibleColumnsKeys = $state<string[]>([
     'profile_image_url',
     'screen_name', 

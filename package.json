@@ -21,6 +21,7 @@
     "@types/ms": "^2.1.0",
     "@types/papaparse": "^5.3.16",
     "@wxt-dev/module-svelte": "^2.0.0",
+    "autoprefixer": "^10.5.0",
     "bits-ui": "^1.1.0",
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.469.0",

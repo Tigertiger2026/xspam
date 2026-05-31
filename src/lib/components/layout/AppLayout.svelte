@@ -12,6 +12,7 @@
     UsersIcon,
     CodeIcon,
     UserXIcon,
+    XIcon,
   } from 'lucide-svelte'
   import {
     goBack,
@@ -29,10 +30,12 @@
     open,
     standalone = false,
     children,
+    onClose,
   }: {
     open: boolean
     standalone?: boolean
     children: Snippet
+    onClose?: () => void
   } = $props()
 
   const menuItems = $derived.by(() => {
@@ -96,7 +99,7 @@
   class={cn(
     standalone
       ? 'w-full min-h-screen flex flex-col bg-background'
-      : 'fixed w-full top-0 left-0 h-screen h-[100dvh] flex flex-col bg-background',
+      : 'fixed z-[999999] w-full top-0 left-0 h-screen h-[100dvh] flex flex-col bg-background',
     open ? 'block' : 'hidden',
   )}
 >
@@ -116,7 +119,13 @@
         <h1 class="text-xl font-bold truncate flex-1" id="layout-nav-title">
           {title ?? autoTitle}
         </h1>
-        <div class="ml-auto" id="layout-nav-extra"></div>
+        <div class="ml-auto flex items-center gap-2" id="layout-nav-extra">
+          {#if onClose}
+            <Button variant="ghost" size="icon" onclick={onClose}>
+              <XIcon class="w-5 h-5" />
+            </Button>
+          {/if}
+        </div>
       </header>
       <div class="flex-1 px-6 pt-4 pb-6 overflow-auto">
         {@render children?.()}

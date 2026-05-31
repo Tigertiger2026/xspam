@@ -38,23 +38,18 @@ export default defineContentScript({
       name: 'mass-block-twitter',
       position: 'inline',
       anchor: 'body',
-      onMount: () => {
-        const shadowDOM = document
-          .querySelector('mass-block-twitter')
-          ?.shadowRoot?.querySelector('body')
-        if (!shadowDOM) {
-          throw new Error('mass-block-twitter not found')
-        }
-        mount(App, {
-          target: shadowDOM,
+      onMount: (uiContainer) => {
+        const app = mount(App, {
+          target: uiContainer,
           props: {
             initialPath: openExtensionPath,
-            portalRoot: shadowDOM,
+            portalRoot: uiContainer,
           },
         })
+        return app
       },
-      onRemove: () => {
-        unmount(App)
+      onRemove: (app) => {
+        if (app) unmount(app)
       },
     })
     ui.mount()
