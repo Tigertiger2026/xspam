@@ -756,9 +756,9 @@ function filterEntrie(
       return true
     }
     // if quote tweet is not show, but main tweet is show, remove the quote tweet
-    // delete originalTweets[0].value.quoted_status_result
-    flowFilterCacheMap.set('tweet:' + tweets[1].id, { value: true })
-    flowFilterCacheMap.set('user:' + tweets[1].user.id, { value: true })
+    if (originalTweets[0] && originalTweets[0].value) {
+      delete originalTweets[0].value.quoted_status_result
+    }
     return true
   }
   return tweets.every(isShow)
@@ -781,25 +781,24 @@ function filterTimelineAddToModule(
       }),
     ),
   })
-  const [addToModules] = extractObjects(
+  const addToModulesList = extractObjects(
     json,
     (it) => addToModulesSchema.safeParse(it).success,
   ) as (typeof addToModulesSchema._type)[]
-  if (!addToModules) {
+  
+  if (addToModulesList.length === 0) {
     return {
       matched: false,
       data: json,
     }
   }
-  if (!addToModules) {
-    return {
-      matched: false,
-      data: json,
-    }
+  
+  for (const addToModules of addToModulesList) {
+    addToModules.moduleItems = addToModules.moduleItems.filter((it) =>
+      filterEntrie(it, isShow),
+    )
   }
-  addToModules.moduleItems = addToModules.moduleItems.filter((it) =>
-    filterEntrie(it, isShow),
-  )
+  
   return {
     matched: true,
     data: json,
@@ -823,19 +822,24 @@ function filterTimelineAddEntries(
       }),
     ),
   })
-  const [addEntries] = extractObjects(
+  const addEntriesList = extractObjects(
     json,
     (it) => addEntriesSchema.safeParse(it).success,
   ) as (typeof addEntriesSchema._type)[]
-  if (!addEntries) {
+  
+  if (addEntriesList.length === 0) {
     return {
       matched: false,
       data: json,
     }
   }
-  addEntries.entries = addEntries.entries.filter((it) =>
-    filterEntrie(it, isShow),
-  )
+  
+  for (const addEntries of addEntriesList) {
+    addEntries.entries = addEntries.entries.filter((it) =>
+      filterEntrie(it, isShow),
+    )
+  }
+  
   return {
     matched: true,
     data: json,
@@ -847,13 +851,12 @@ export function filterTweets(
   isShow: (tweet: ParsedTweet) => boolean,
 ) {
   const r1 = filterTimelineAddEntries(json, isShow)
-  if (r1.matched) {
-    return r1.data
-  }
   const r2 = filterTimelineAddToModule(json, isShow)
-  if (r2.matched) {
-    return r2.data
+  
+  if (r1.matched || r2.matched) {
+    return json
   }
+  
   console.error('filterTweets not parsed', json)
   return json
 }
