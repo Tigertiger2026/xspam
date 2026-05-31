@@ -716,6 +716,16 @@ function filterEntrie(
   entrie: any,
   isShow: (tweet: ParsedTweet) => boolean,
 ): boolean {
+  if (
+    entrie?.content?.entryType === 'TimelineTimelineModule' &&
+    Array.isArray(entrie.content.items)
+  ) {
+    entrie.content.items = entrie.content.items.filter((item: any) =>
+      filterEntrie(item, isShow),
+    )
+    return entrie.content.items.length > 0
+  }
+
   const extendedTweetSchema = tweetScheam.extend({
     quoted_status_result: z
       .union([
@@ -744,7 +754,7 @@ function filterEntrie(
     }
     return tweet
   })
-  if (tweets.length === 2) {
+  if (tweets.length === 2 && tweets[0].quoted_status_id_str === tweets[1].id) {
     const showMain = isShow(tweets[0])
     const showQuote = isShow(tweets[1])
     // if main tweet is not show, return false
