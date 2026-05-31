@@ -372,8 +372,12 @@ export default defineContentScript({
   runAt: 'document_start',
   world: 'MAIN',
   async main() {
-    await initDB()
+    const dbPromise = initDB()
     new Vista([interceptFetch, interceptXHR])
+      .use(async (c, next) => {
+        await dbPromise
+        await next()
+      })
       .use(blockClientEvent())
       .use(loggerRequestHeaders())
       .use(handleNotifications())
@@ -381,6 +385,8 @@ export default defineContentScript({
       .use(loggerTweets())
       .use(loggerUsers())
       .intercept()
+      
+    await dbPromise
     await wait(() => !!document.body)
     observe()
   },
