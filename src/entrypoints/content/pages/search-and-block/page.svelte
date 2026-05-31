@@ -116,7 +116,7 @@
     'blocking',
   ])
   let visibleColumns = $derived(
-    allColumns.filter((it) => visibleColumnsKeys.includes(it.key)),
+    allColumns.filter((it) => visibleColumnsKeys.includes(it.dataIndex as string)),
   )
 
   // 批量解除屏蔽
@@ -285,7 +285,7 @@
     <div class="p-4 text-center">加载中...</div>
   {:else}
     <ADataTable
-      data={rows}
+      dataSource={rows}
       columns={visibleColumns}
       bind:selectedRows={selectedUsers}
       getRowId={(row) => row.id}

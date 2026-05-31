@@ -33,7 +33,7 @@
     'blocking',
   ])
   let visibleColumns = $derived(
-    allColumns.filter((it) => visibleColumnsKeys.includes(it.key))
+    allColumns.filter((it) => visibleColumnsKeys.includes(it.dataIndex as string))
   )
 
   // 过滤后的数据
@@ -147,7 +147,7 @@
     <div class="p-4 text-center">加载中...</div>
   {:else}
     <ADataTable
-      data={filteredUsers}
+      dataSource={filteredUsers}
       columns={visibleColumns}
       bind:selectedRows={selectedUsers}
       getRowId={(row) => row.id}
