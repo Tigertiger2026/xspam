@@ -121,8 +121,9 @@
         </h1>
         <div class="ml-auto flex items-center gap-2" id="layout-nav-extra">
           {#if onClose}
-            <Button variant="ghost" size="icon" onclick={onClose}>
-              <XIcon class="w-5 h-5" />
+            <Button variant="destructive" class="gap-2 shadow-sm font-medium" onclick={onClose}>
+              <XIcon class="w-4 h-4" />
+              {$t('common.actions.close') || '关闭界面'}
             </Button>
           {/if}
         </div>
