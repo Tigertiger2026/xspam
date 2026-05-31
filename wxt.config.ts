@@ -77,6 +77,14 @@ export default defineConfig({
     disabled: true,
   },
   vite: () => ({
+    css: {
+      postcss: {
+        plugins: [
+          require('tailwindcss'),
+          require('autoprefixer'),
+        ]
+      }
+    },
     resolve: {
       alias: {
         $lib: path.resolve('./src/lib'),
