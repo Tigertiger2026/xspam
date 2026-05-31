@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.wxt/
+.output/
+.svelte-kit/
+.DS_Store
+coverage/
