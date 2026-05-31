@@ -257,7 +257,7 @@ function handleTweets(): FetchMiddleware {
     await next()
     if (
       !new URLPattern(
-        'https://x.com/i/api/graphql/*/(HomeTimeline|TweetDetail|UserTweets|UserTweetsAndReplies|CommunityTweetsTimeline|HomeLatestTimeline|SearchTimeline|Bookmarks|ListLatestTweetsTimeline)',
+        'https://x.com/i/api/graphql/*/(HomeTimeline|TweetDetail|UserTweets|UserTweetsAndReplies|CommunityTweetsTimeline|HomeLatestTimeline|SearchTimeline|Bookmarks|ListLatestTweetsTimeline|UserMedia|Likes|UserHighlightsTweets|TweetResultByRestId)',
       ).test(c.req.url)
     ) {
       return

@@ -108,9 +108,9 @@ export function parseProfileImageUrl(url?: string | null): string | undefined {
 }
 
 export const timelineUserSchema = z.object({
-  __typename: z.literal('User'),
+  __typename: z.string().optional(),
   rest_id: z.string(),
-  is_blue_verified: z.boolean(),
+  is_blue_verified: z.boolean().optional(),
   // TODO Twitter API breaking change 2025-06-05
   avatar: z
     .object({
@@ -164,7 +164,7 @@ export const timelineUserSchema = z.object({
   relationship_perspectives: z
     .object({
       blocking: z.boolean().optional(),
-      following: z.boolean(),
+      following: z.boolean().optional(),
     })
     .optional(),
   verification: z
@@ -346,11 +346,7 @@ const legacySchema = z.object({
       .array(
         z.object({
           media_url_https: z.string(),
-          type: z.union([
-            z.literal('photo'),
-            z.literal('video'),
-            z.literal('animated_gif'),
-          ]),
+          type: z.string(),
           url: z.string(),
         }),
       )
@@ -360,10 +356,10 @@ const legacySchema = z.object({
   conversation_id_str: z.string(),
   in_reply_to_status_id_str: z.string().optional().nullable(),
   quoted_status_id_str: z.string().optional(),
-  lang: z.string(),
+  lang: z.string().optional(),
 })
 export const tweetScheam = z.object({
-  __typename: z.literal('Tweet').optional(),
+  __typename: z.string().optional(),
   rest_id: z.string(),
   core: z.object({
     user_results: z.object({
@@ -371,7 +367,7 @@ export const tweetScheam = z.object({
     }),
   }),
   legacy: legacySchema,
-  source: z.string(),
+  source: z.string().optional(),
 })
 
 function parseLegacyTweet(
