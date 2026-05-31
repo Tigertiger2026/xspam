@@ -17,12 +17,12 @@
 
 ### 手动安装
 
-1. 下载 [最新 release](https://github.com/Tigertiger2026/xspam/releases)
-2. 解压 zip 文件
-3. Chrome 打开 `chrome://extensions/`
-4. 开启"开发者模式"
-5. 点击"加载已解压的扩展程序"
-6. 选择解压后的文件夹
+1. 访问本项目的 [Releases 页面](https://github.com/Tigertiger2026/xspam/releases)。
+2. 在最新的发版中，下载以 `.zip` 结尾的插件安装包（例如：`mass-block-twitter-1.0.0-chrome.zip`）。**请注意：不要下载 `spam-data-latest` 中的 json 数据文件，也不要下载 Source code 源码压缩包。**
+3. 将下载的 `.zip` 安装包解压，得到一个文件夹。
+4. 在 Chrome 浏览器地址栏输入 `chrome://extensions/` 并打开扩展管理页面。
+5. 在右上角开启 **"开发者模式"**。
+6. 点击左上角的 **"加载已解压的扩展程序"**，然后选择你刚刚解压出来的文件夹，即可完成安装！
 
 ## 数据源
 
