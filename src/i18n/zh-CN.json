@@ -146,5 +146,14 @@
   "floatingButton.close": "关闭悬浮球",
   "floatingButton.close.confirm.description.before": "你可以在",
   "floatingButton.close.confirm.description.after": "中重新打开",
-  "floatingButton.blockCommunicationMembers": "屏蔽社区成员"
+  "floatingButton.blockCommunicationMembers": "屏蔽社区成员",
+  "error.notFound": "找不到该账号（可能已被删除或封禁）",
+  "error.rateLimit": "请求过于频繁，触发限制",
+  "error.unauthorized": "未授权，请检查登录状态",
+  "error.forbidden": "没有权限执行该操作",
+  "modlists.detail.toast.blockingProgress": "正在物理屏蔽云端垃圾账号... (进度: {current}/{total}, 预估剩余时间: {remain})",
+  "modlists.detail.toast.blockingSuccess": "批量物理屏蔽完成，成功处理 {count} 个账号！",
+  "modlists.detail.toast.blockingAborted": "批量操作已手动中止",
+  "modlists.detail.toast.blockingStop": "正在中止...",
+  "modlists.detail.toast.blocking": "准备开始批量物理屏蔽..."
 }

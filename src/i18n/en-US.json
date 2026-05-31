@@ -184,5 +184,14 @@
   "common.actions.close": "Close",
   "common.actions.delete": "Delete",
   "common.actions.download": "Download",
-  "common.actions.upgrade": "Upgrade Now"
+  "common.actions.upgrade": "Upgrade Now",
+  "error.notFound": "Account not found (may be deleted or suspended)",
+  "error.rateLimit": "Rate limit exceeded, please try again later",
+  "error.unauthorized": "Unauthorized, please check login status",
+  "error.forbidden": "Permission denied",
+  "modlists.detail.toast.blockingProgress": "Physically blocking cloud spams... (Progress: {current}/{total}, Time remaining: {remain})",
+  "modlists.detail.toast.blockingSuccess": "Batch physical block complete, successfully processed {count} accounts!",
+  "modlists.detail.toast.blockingAborted": "Batch operation aborted",
+  "modlists.detail.toast.blockingStop": "Stopping...",
+  "modlists.detail.toast.blocking": "Preparing to batch block..."
 }

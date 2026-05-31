@@ -143,5 +143,14 @@
   "floatingButton.close.confirm.title": "¿Estás seguro de que querés cerrar el botón flotante?",
   "floatingButton.close.confirm.description.before": "Podés reabrirlo en",
   "floatingButton.close.confirm.description.after": " ",
-  "floatingButton.blockCommunicationMembers": "Bloquear Miembros de Comunicación"
+  "floatingButton.blockCommunicationMembers": "Bloquear Miembros de Comunicación",
+  "error.notFound": "Account not found (may be deleted or suspended)",
+  "error.rateLimit": "Rate limit exceeded, please try again later",
+  "error.unauthorized": "Unauthorized, please check login status",
+  "error.forbidden": "Permission denied",
+  "modlists.detail.toast.blockingProgress": "Physically blocking cloud spams... (Progress: {current}/{total}, Time remaining: {remain})",
+  "modlists.detail.toast.blockingSuccess": "Batch physical block complete, successfully processed {count} accounts!",
+  "modlists.detail.toast.blockingAborted": "Batch operation aborted",
+  "modlists.detail.toast.blockingStop": "Stopping...",
+  "modlists.detail.toast.blocking": "Preparing to batch block..."
 }
