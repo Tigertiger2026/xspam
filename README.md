@@ -17,7 +17,7 @@
 
 ### 手动安装
 
-1. 下载 [最新 release](https://github.com/Tigertiger2026/xspam-client/releases)
+1. 下载 [最新 release](https://github.com/Tigertiger2026/xspam/releases)
 2. 解压 zip 文件
 3. Chrome 打开 `chrome://extensions/`
 4. 开启"开发者模式"
