@@ -49,17 +49,7 @@
     </div>
     <Checkbox class="shrink-0" bind:checked={$settings.hideMutedWords} />
   </Label>
-  <Label class="flex items-center gap-4 py-4 cursor-pointer">
-    <div class="flex-1">
-      <span class="block text-base font-medium">
-        {$t('settings.filter.hideModListAccounts')}
-      </span>
-      <span class="block mt-1 text-sm text-gray-500">
-        {$t('settings.filter.hideModListAccounts.description')}
-      </span>
-    </div>
-    <Checkbox class="shrink-0" bind:checked={$settings.hideModListAccounts} />
-  </Label>
+
   <Label class="py-4 block">
     <div class="mb-2">
       <span class="block text-base font-medium">
