@@ -101,6 +101,18 @@ export function selfFilter(): TweetFilter {
   }
 }
 
+export function nativeBlockFilter(): TweetFilter {
+  return {
+    name: 'nativeBlock',
+    userCondition: (user: User) => {
+      if (user.blocking) {
+        return 'hide'
+      }
+      return 'next'
+    },
+  }
+}
+
 export interface MutedWordRule {
   id: string
   keyword: string

@@ -21,7 +21,9 @@ import { injectCSS } from '$lib/injectCSS'
 import { URLPattern } from 'urlpattern-polyfill'
 import {
   eventMessage,
+  initSpamContext,
   refreshSpamUsers,
+  spamContext,
 } from '$lib/shared'
 import {
   blueVerifiedFilter,
@@ -34,6 +36,7 @@ import {
   sharedSpamFilter,
   TweetFilter,
   selfFilter,
+  nativeBlockFilter,
   grokFilter,
   adFilter,
 } from '$lib/filter'
@@ -91,6 +94,13 @@ function loggerUsers(): FetchMiddleware {
       // (like handleTweets) have the updated spamContext.spamUsers when they run synchronously.
       await refreshSpamUsers(userIds)
 
+      // Also track screen names for DOM-level backup filter
+      for (const user of users) {
+        if (spamContext.spamUsers.has(user.id) && user.screen_name) {
+          spamContext.spamScreenNames.add(user.screen_name.toLowerCase())
+        }
+      }
+
       requestAnimationFrame(async () => {
         await dbApi.users.record(users)
         if (getSettings().hideSpamAccounts) {
@@ -113,7 +123,7 @@ function handleUsers(users: User[]) {
 }
 
 function getFilters(settings: Settings) {
-  const filters: TweetFilter[] = [selfFilter()]
+  const filters: TweetFilter[] = [selfFilter(), nativeBlockFilter()]
   if (settings.hideMutedWords) {
     filters.push(mutedWordsFilter())
   }
@@ -296,6 +306,44 @@ function eachTweetElements() {
 
 const eachTweetElementsThrottle = throttle(eachTweetElements, 100)
 
+/**
+ * DOM-level backup filter: hide tweet elements from users in the spam list.
+ * This is a last-resort defense that works even if API-level filtering fails.
+ */
+function hideSpamTweetElement(tweetElement: HTMLElement) {
+  if (tweetElement.dataset.spamChecked === 'true') return
+  tweetElement.dataset.spamChecked = 'true'
+
+  // Extract screen_name from the tweet element's user link
+  // Twitter tweet DOM typically has: <a href="/screen_name" ...> somewhere in the header area
+  const userLinks = tweetElement.querySelectorAll<HTMLAnchorElement>(
+    'a[role="link"][href^="/"]',
+  )
+  for (const link of userLinks) {
+    const href = link.getAttribute('href')
+    if (!href) continue
+    // Skip non-user links (status links, hashtags, etc.)
+    if (
+      href.includes('/status/') ||
+      href.includes('/hashtag/') ||
+      href.includes('/search') ||
+      href.includes('/i/') ||
+      href.includes('/settings') ||
+      href.includes('/compose') ||
+      href.split('/').length !== 2
+    ) {
+      continue
+    }
+    const screenName = href.slice(1).toLowerCase() // remove leading '/'
+    if (!screenName || screenName.includes('/')) continue
+    if (spamContext.spamScreenNames.has(screenName)) {
+      console.debug('[XSpam] DOM backup filter: hiding tweet from @' + screenName)
+      tweetElement.style.display = 'none'
+      return
+    }
+  }
+}
+
 async function processUserElement(userElement: HTMLElement) {
   const userLink = userElement.querySelector<HTMLAnchorElement>(
     'a[href^="/"][role="link"]',
@@ -354,6 +402,7 @@ function observe() {
           node.querySelector('[data-testid="reply"]')
         ) {
           addBlockButtonInTweet(node)
+          hideSpamTweetElement(node)
         }
         eachTweetElementsThrottle()
       })
@@ -387,7 +436,13 @@ export default defineContentScript({
       .intercept()
       
     await dbPromise
+    // Preload ALL spam user IDs and screen names from IndexedDB into memory
+    await initSpamContext()
     await wait(() => !!document.body)
     observe()
+    // Also run DOM backup filter on all existing tweet elements
+    document.querySelectorAll<HTMLElement>(
+      '[data-testid="cellInnerDiv"]:has([data-testid="reply"])',
+    ).forEach(hideSpamTweetElement)
   },
 })

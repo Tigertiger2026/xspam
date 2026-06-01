@@ -16,13 +16,13 @@ export type CommunityMember = User & {
 
 const communityMemberSchema = timelineUserSchema.extend({
   community_role: z.enum(['Member', 'Moderator', 'Admin']),
-  legacy: timelineUserSchema.shape.legacy.pick({
-    screen_name: true,
-    name: true,
-    profile_image_url_https: true,
-    blocking: true,
-    following: true,
-  }),
+  legacy: z.object({
+    screen_name: z.string().optional().nullable(),
+    name: z.string().optional().nullable(),
+    profile_image_url_https: z.string().optional().nullable(),
+    blocking: z.boolean().optional().nullable(),
+    following: z.boolean().optional().nullable(),
+  }).optional(),
 })
 export function parseCommunityMembers(json: any): {
   data: CommunityMember[]

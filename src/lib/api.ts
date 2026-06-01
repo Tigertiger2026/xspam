@@ -145,19 +145,12 @@ export const timelineUserSchema = z.object({
     // TODO deprecated Twitter API breaking change 2025-06-05, use location.location instead
     location: z.string().optional().nullable(),
     url: z.string().optional().nullable(),
-    entities: z
-      .object({
-        description: z
-          .object({ urls: z.array(urlSchema).optional() })
-          .optional(),
-        url: z.object({ urls: z.array(urlSchema) }).optional(),
-      })
-      .optional(),
-  }),
+    entities: z.any().optional(),
+  }).optional(),
   // TODO new Twitter API breaking change 2025-06-05
   location: z
     .object({
-      location: z.string(),
+      location: z.string().optional(),
     })
     .optional(),
   // TODO new Twitter API breaking change 2025-06-05
@@ -176,55 +169,65 @@ export const timelineUserSchema = z.object({
 })
 
 export function parseTimelineUser(
-  twitterUser: z.infer<typeof timelineUserSchema>,
+  twitterUser: z.infer<typeof timelineUserSchema> | undefined | null,
 ): User {
+  if (!twitterUser || !twitterUser.rest_id) {
+    return {
+      id: '',
+      blocking: false,
+      following: false,
+      screen_name: '',
+      name: '',
+      updated_at: new Date().toISOString(),
+    }
+  }
   const created_at =
-    twitterUser.core?.created_at ?? twitterUser.legacy.created_at
+    twitterUser.core?.created_at ?? twitterUser.legacy?.created_at
   const user: User = {
     id: twitterUser.rest_id,
     blocking:
       twitterUser.relationship_perspectives?.blocking ??
-      twitterUser.legacy.blocking ??
+      twitterUser.legacy?.blocking ??
       false,
     following:
       twitterUser.relationship_perspectives?.following ??
-      twitterUser.legacy.following ??
+      twitterUser.legacy?.following ??
       false,
     screen_name: (twitterUser.core?.screen_name ??
-      twitterUser.legacy.screen_name)!,
-    name: (twitterUser.core?.name ?? twitterUser.legacy.name)!,
-    description: twitterUser.legacy.description ?? undefined,
+      twitterUser.legacy?.screen_name)!,
+    name: (twitterUser.core?.name ?? twitterUser.legacy?.name)!,
+    description: twitterUser.legacy?.description ?? undefined,
     profile_image_url: parseProfileImageUrl(
       twitterUser.avatar?.image_url ??
-        twitterUser.legacy.profile_image_url_https,
+        twitterUser.legacy?.profile_image_url_https,
     ),
     created_at: created_at ? new Date(created_at).toISOString() : undefined,
     updated_at: new Date().toISOString(),
-    followers_count: twitterUser.legacy.followers_count,
-    friends_count: twitterUser.legacy.friends_count,
-    default_profile: twitterUser.legacy.default_profile,
-    default_profile_image: twitterUser.legacy.default_profile_image,
+    followers_count: twitterUser.legacy?.followers_count,
+    friends_count: twitterUser.legacy?.friends_count,
+    default_profile: twitterUser.legacy?.default_profile,
+    default_profile_image: twitterUser.legacy?.default_profile_image,
     is_blue_verified: twitterUser.is_blue_verified,
     location:
       twitterUser.location?.location ??
-      twitterUser.legacy.location ??
+      twitterUser.legacy?.location ??
       undefined,
     verification_verified: twitterUser.verification?.verified,
     verification_verified_type: twitterUser.verification?.verified_type,
   }
   if (
-    twitterUser.legacy.description &&
-    twitterUser.legacy.entities?.description?.urls
+    twitterUser.legacy?.description &&
+    twitterUser.legacy?.entities?.description?.urls
   ) {
-    twitterUser.legacy.entities.description.urls.forEach((url) => {
+    twitterUser.legacy.entities.description.urls.forEach((url: any) => {
       if (url.expanded_url) {
         user.description = user.description?.replace(url.url, url.expanded_url)
       }
     })
   }
-  if (twitterUser.legacy.url && twitterUser.legacy.entities?.url?.urls) {
+  if (twitterUser.legacy?.url && twitterUser.legacy?.entities?.url?.urls) {
     const item = twitterUser.legacy.entities.url.urls.find(
-      (it) => it.url === twitterUser.legacy.url,
+      (it: any) => it.url === twitterUser.legacy?.url,
     )
     if (item) {
       user.url = item.expanded_url
@@ -337,60 +340,49 @@ export const MUTED_WORDS_KEY = 'MASS_BLOCK_TWITTER_MUTED_WORDS'
 export const MUTED_WORD_RULES_KEY = 'MASS_BLOCK_TWITTER_MUTED_WORD_RULES'
 
 const legacySchema = z.object({
-  created_at: z.string(),
-  full_text: z.string(),
-  user_id_str: z.string(),
-  id_str: z.string(),
-  entities: z.object({
-    media: z
-      .array(
-        z.object({
-          media_url_https: z.string(),
-          type: z.string(),
-          url: z.string(),
-        }),
-      )
-      .optional(),
-    urls: z.array(urlSchema).optional(),
-  }),
-  conversation_id_str: z.string(),
+  created_at: z.string().optional(),
+  full_text: z.string().optional(),
+  user_id_str: z.string().optional(),
+  id_str: z.string().optional(),
+  entities: z.any().optional(),
+  conversation_id_str: z.string().optional(),
   in_reply_to_status_id_str: z.string().optional().nullable(),
   quoted_status_id_str: z.string().optional(),
   lang: z.string().optional(),
-})
+}).passthrough()
 export const tweetScheam = z.object({
   __typename: z.string().optional(),
   rest_id: z.string(),
   core: z.object({
     user_results: z.object({
       result: timelineUserSchema,
-    }),
+    }).optional(),
   }),
-  legacy: legacySchema,
+  legacy: legacySchema.optional(),
   source: z.string().optional(),
-})
+}).passthrough()
 
 function parseLegacyTweet(
-  it: z.infer<typeof legacySchema>,
+  it: z.infer<typeof legacySchema> | undefined,
 ): Omit<ParsedTweet, 'user' | 'source' | 'source_type'> {
   const tweet: Omit<ParsedTweet, 'user' | 'source' | 'source_type'> = {
-    id: it.id_str,
-    text: it.full_text,
-    created_at: new Date(it.created_at).toISOString(),
-    conversation_id_str: it.conversation_id_str,
-    in_reply_to_status_id_str: it.in_reply_to_status_id_str ?? undefined,
-    quoted_status_id_str: it.quoted_status_id_str,
-    lang: it.lang,
+    id: it?.id_str ?? '',
+    text: it?.full_text ?? '',
+    created_at: it?.created_at ? new Date(it.created_at).toISOString() : new Date().toISOString(),
+    conversation_id_str: it?.conversation_id_str ?? '',
+    in_reply_to_status_id_str: it?.in_reply_to_status_id_str ?? undefined,
+    quoted_status_id_str: it?.quoted_status_id_str ?? undefined,
+    lang: it?.lang,
   }
-  if (it.entities.urls) {
-    it.entities.urls.forEach((url) => {
+  if (it?.entities?.urls) {
+    it.entities.urls.forEach((url: any) => {
       if (url.expanded_url) {
         tweet.text = tweet.text.replace(url.url, url.expanded_url)
       }
     })
   }
-  if (it.entities.media) {
-    it.entities.media.forEach((media) => {
+  if (it?.entities?.media) {
+    it.entities.media.forEach((media: any) => {
       if (tweet.text.endsWith(' ' + media.url)) {
         tweet.text = tweet.text.slice(
           0,
@@ -399,8 +391,8 @@ function parseLegacyTweet(
       }
     })
   }
-  if (it.entities.media) {
-    tweet.media = it.entities.media?.map((media) => ({
+  if (it?.entities?.media) {
+    tweet.media = it.entities.media?.map((media: any) => ({
       url: media.media_url_https,
       type: media.type,
     }))
@@ -447,7 +439,8 @@ type SourceType =
   | 'simpleads-ui'
   | 'unknown'
 
-export function parseSourceType(source: string): SourceType {
+export function parseSourceType(source: string | undefined): SourceType {
+  if (!source) return 'unknown'
   if (source.includes('/download/iphone')) {
     return 'iphone'
   }
@@ -482,7 +475,7 @@ export function parseTweet(
   const legacyTweet = parseLegacyTweet(it.legacy)
   const tweet: ParsedTweet = {
     ...legacyTweet,
-    user: parseTimelineUser(it.core.user_results.result),
+    user: parseTimelineUser(it.core?.user_results?.result as any),
     source: it.source,
   }
   if (context) {
@@ -526,15 +519,10 @@ export function parseTweets(json: any): ParsedTweet[] {
       path: string[]
     }[]
   ).map((it) => {
-    const legacyTweet = parseTweet(it.value, {
+    return parseTweet(it.value, {
       json,
       path: it.path,
     })
-    const tweet: ParsedTweet = {
-      ...legacyTweet,
-      user: parseTimelineUser(it.value.core.user_results.result),
-    }
-    return tweet
   })
 }
 
@@ -740,15 +728,10 @@ function filterEntrie(
     path: string[]
   }[]
   const tweets = originalTweets.map((it) => {
-    const legacyTweet = parseTweet(it.value, {
+    return parseTweet(it.value, {
       json: entrie,
       path: it.path,
     })
-    const tweet: ParsedTweet = {
-      ...legacyTweet,
-      user: parseTimelineUser(it.value.core.user_results.result),
-    }
-    return tweet
   })
   if (tweets.length === 2 && tweets[0].quoted_status_id_str === tweets[1].id) {
     const showMain = isShow(tweets[0])

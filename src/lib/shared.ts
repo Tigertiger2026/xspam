@@ -18,11 +18,28 @@ export const flowFilterCacheMap = new Lru<{ value: boolean; reason?: string }>(
 // Spam 上下文
 export const spamContext: {
   spamUsers: Set<string>
+  spamScreenNames: Set<string>
 } = {
   spamUsers: new Set(),
+  spamScreenNames: new Set(),
 }
 
-// 刷新 Spam 用户列表
+// 初始化：从 IndexedDB 加载全部活跃 spam 用户到内存
+export async function initSpamContext(): Promise<void> {
+  try {
+    const [allIds, allHandles] = await Promise.all([
+      dbApi.spamUsers.getAllActiveIds(),
+      dbApi.spamUsers.getAllActiveHandles(),
+    ])
+    allIds.forEach((id) => spamContext.spamUsers.add(id))
+    allHandles.forEach((handle) => spamContext.spamScreenNames.add(handle))
+    console.debug('[XSpam] initSpamContext: loaded', allIds.length, 'user IDs,', allHandles.length, 'screen names')
+  } catch (err) {
+    console.error('[XSpam] initSpamContext failed', err)
+  }
+}
+
+// 刷新 Spam 用户列表（增量：从 API 响应中发现的用户）
 export async function refreshSpamUsers(userIds: string[]): Promise<void> {
   const spamUserIds = await dbApi.spamUsers.isSpam(userIds)
   spamUserIds.forEach((userId) => {

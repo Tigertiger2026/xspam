@@ -874,6 +874,32 @@ class SpamUserDAO {
       cursor: data.length === params.limit ? data[data.length - 1]?.id : undefined,
     }
   }
+
+  async getAllActiveIds(): Promise<string[]> {
+    const tx = dbStore.idb.transaction('spamUsers', 'readonly')
+    const store = tx.objectStore('spamUsers')
+    const allRecords = await store.getAll()
+    await tx.done
+    return allRecords
+      .map(compatSpamUser)
+      .filter((it) => it.hideStatus === 'active')
+      .map((it) => it.userId || it.id)
+  }
+
+  async getAllActiveHandles(): Promise<Set<string>> {
+    const tx = dbStore.idb.transaction('spamUsers', 'readonly')
+    const store = tx.objectStore('spamUsers')
+    const allRecords = await store.getAll()
+    await tx.done
+    const handles = new Set<string>()
+    for (const raw of allRecords) {
+      const record = compatSpamUser(raw)
+      if (record.hideStatus === 'active' && record.handle) {
+        handles.add(record.handle.toLowerCase())
+      }
+    }
+    return handles
+  }
 }
 
 export const dbApi = {
