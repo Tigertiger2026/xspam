@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { collectRequiredDeltas, type CloudSpamMetadata } from '$lib/cloudSpam'
+import {
+  collectRequiredDeltas,
+  isCloudSnapshotCurrent,
+  type CloudSpamMetadata,
+} from '$lib/cloudSpam'
 
 function createMetadata(): CloudSpamMetadata {
   return {
@@ -45,5 +49,33 @@ describe('collectRequiredDeltas', () => {
 
   it('returns empty array when already current', () => {
     expect(collectRequiredDeltas('2026-05-26', createMetadata())).toEqual([])
+  })
+})
+
+describe('isCloudSnapshotCurrent', () => {
+  it('treats the same version and generatedAt as current', () => {
+    const metadata = createMetadata()
+    expect(isCloudSnapshotCurrent({
+      localVersion: metadata.currentVersion,
+      localGeneratedAt: metadata.generatedAt,
+      metadata,
+    })).toBe(true)
+  })
+
+  it('forces a full refresh when the same daily version was republished', () => {
+    const metadata = createMetadata()
+    expect(isCloudSnapshotCurrent({
+      localVersion: metadata.currentVersion,
+      localGeneratedAt: metadata.generatedAt - 1,
+      metadata,
+    })).toBe(false)
+  })
+
+  it('refreshes once after upgrading from clients without generatedAt state', () => {
+    const metadata = createMetadata()
+    expect(isCloudSnapshotCurrent({
+      localVersion: metadata.currentVersion,
+      metadata,
+    })).toBe(false)
   })
 })

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { toast } from 'svelte-sonner'
+  import { browser } from 'wxt/browser'
 
   async function showPrivacyPolicy() {
     const local = browser.storage.local
@@ -22,7 +23,7 @@
         label: 'View',
         onClick: () => {
           window.open(
-            'https://mass-block-twitter.rxliuli.com/docs/privacy',
+            'https://github.com/Tigertiger2026/xspam',
             '_blank',
           )
           local.set({

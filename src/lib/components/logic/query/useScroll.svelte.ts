@@ -1,7 +1,10 @@
-import { InfiniteQueryObserverResult } from '@tanstack/svelte-query'
+export interface ScrollableQuery {
+  hasNextPage?: boolean
+  isFetching?: boolean
+  fetchNextPage: () => Promise<any>
+}
 
-// TODO: fuck of svelte5 runes
-export function useScroll(_query: () => InfiniteQueryObserverResult) {
+export function useScroll(_query: () => ScrollableQuery) {
   const query = $derived.by(_query)
   async function onScroll(event: UIEvent) {
     const target = event.target as HTMLElement

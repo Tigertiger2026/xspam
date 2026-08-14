@@ -39,6 +39,7 @@ export function getDefaultSettings(): Settings {
     theme: 'system',
     hideAdvertiser: true,
     hideGrok: false,
+    showFloatingButton: true,
   }
 }
 
@@ -47,9 +48,11 @@ export function getSettings(): Settings {
     hideSuspiciousAccounts: true,
     hideSpamAccounts: true,
     hideMutedWords: true,
-    hideBlueVerifiedAccounts: false,
     hideLanguages: [],
     theme: 'system',
+    hideAdvertiser: true,
+    hideGrok: false,
+    showFloatingButton: true,
   } as Settings)
 }
 

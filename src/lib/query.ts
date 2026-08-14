@@ -2,8 +2,8 @@ import { messager } from './messaging'
 import { parse, stringifyAsync } from './serializer'
 
 export const crossFetch: typeof fetch = async (url, options) => {
-  // proxying fetch on firefox, fuck firefox csp
-  if (import.meta.env.FIREFOX) {
+  // proxying fetch on firefox, bypass firefox csp
+  if ((import.meta.env as any).FIREFOX) {
     try {
       // console.log('Using crossFetch proxy for Firefox request', url, options)
       const r = await messager.sendMessage(

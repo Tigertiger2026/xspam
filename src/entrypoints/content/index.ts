@@ -38,7 +38,7 @@ export default defineContentScript({
       name: 'mass-block-twitter',
       position: 'inline',
       anchor: 'body',
-      onMount: (uiContainer) => {
+      onMount: (uiContainer: HTMLElement) => {
         const app = mount(App, {
           target: uiContainer,
           props: {
@@ -48,7 +48,7 @@ export default defineContentScript({
         })
         return app
       },
-      onRemove: (app) => {
+      onRemove: (app: any) => {
         if (app) unmount(app)
       },
     })

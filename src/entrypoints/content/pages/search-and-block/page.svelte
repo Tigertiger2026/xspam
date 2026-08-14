@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { dbApi, dbStore, compatSpamUser, type User } from '$lib/db'
   import { ADataTable } from '$lib/components/logic/a-data-table'
   import { Input } from '$lib/components/ui/input'
@@ -17,6 +18,7 @@
   import { t } from '$lib/i18n'
   import { blockUser, unblockUser } from '$lib/api/twitter'
   import { batchBlockUsersMutation, selectImportFile } from '$lib/hooks/batchBlockUsers'
+  import { eventMessage } from '$lib/shared'
 
   /**
    * XSpam Client - Search and Block Page
@@ -88,7 +90,7 @@
   }
 
   // 初始加载
-  $effect(() => {
+  onMount(() => {
     loadUsers()
   })
 
@@ -149,6 +151,7 @@
           try {
             await unblockUser(u.id)
             await dbApi.users.unblock(u)
+            await dbApi.spamUsers.remove(u.id)
             return undefined
           } catch (err) {
             throw new Error(String(err))
@@ -159,6 +162,7 @@
         },
       })
       await loadUsers() // 刷新列表
+      eventMessage.sendMessage('reloadSpamContext', undefined).catch(() => {})
     } finally {
       isBlocking = false
       selectedUsers = []
@@ -177,6 +181,7 @@
           try {
             await blockUser({ id: u.id })
             await dbApi.users.block(u)
+            await dbApi.spamUsers.upsertManualBlock(u)
             return undefined
           } catch (err) {
             throw new Error(String(err))
@@ -187,6 +192,7 @@
         },
       })
       await loadUsers() // 刷新列表
+      eventMessage.sendMessage('reloadSpamContext', undefined).catch(() => {})
     } finally {
       isBlocking = false
       selectedUsers = []
@@ -207,6 +213,22 @@
           try {
             await blockUser({ id: u.id })
             await dbApi.users.block(u)
+            await dbApi.spamUsers.upsert([
+              {
+                id: u.id,
+                userId: u.id,
+                handle: u.screen_name,
+                displayName: u.name,
+                avatarUrl: u.profile_image_url,
+                source: 'imported',
+                action: 'block',
+                hideStatus: 'active',
+                blockStatus: 'blocked',
+                uploadStatus: 'disabled',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+            ])
             return undefined
           } catch (err) {
             throw new Error(String(err))
@@ -217,6 +239,7 @@
         },
       })
       await loadUsers() // 刷新列表
+      eventMessage.sendMessage('reloadSpamContext', undefined).catch(() => {})
     } finally {
       isBlocking = false
     }

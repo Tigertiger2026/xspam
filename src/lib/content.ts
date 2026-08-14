@@ -19,7 +19,7 @@ import dayjs from 'dayjs'
 import { navigate } from './components/logic/router'
 import { useOpen } from './stores/open.svelte'
 import { dbApi, Tweet, User } from './db'
-import { refreshSpamUsers } from './shared'
+import { eventMessage, flowFilterCacheMap, refreshSpamUsers, spamContext } from './shared'
 
 /**
  * XSpam Client - Content Script Utilities
@@ -168,6 +168,12 @@ export function quickBlock(options: {
         }
         try {
           await dbApi.spamUsers.remove(user.id)
+          spamContext.spamUsers.delete(user.id)
+          if (user.screen_name) {
+            spamContext.spamScreenNames.delete(user.screen_name.toLowerCase())
+          }
+          flowFilterCacheMap.clear()
+          eventMessage.sendMessage('reloadSpamContext', undefined).catch(() => {})
         } catch (err) {
           console.error('Failed to undo local spam record', err)
         }

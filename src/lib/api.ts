@@ -7,6 +7,14 @@ import { get } from 'es-toolkit/compat'
 import { ClientTransaction } from './api/x-client-transaction'
 import { flowFilterCacheMap } from './shared'
 
+export const DEFAULT_TWITTER_BEARER =
+  'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'
+
+export function getCsrfTokenFromCookie(): string | undefined {
+  if (typeof document === 'undefined' || !document.cookie) return undefined
+  return /(?:^|;\s*)ct0=([^;]+)/.exec(document.cookie)?.[1]
+}
+
 export function setRequestHeaders(headers: Headers) {
   const old = getRequestHeaders()
   headers.forEach((value, key) => {
@@ -19,7 +27,29 @@ export function setRequestHeaders(headers: Headers) {
 }
 
 export function getRequestHeaders(): Headers {
-  return new Headers(JSON.parse(localStorage.getItem('requestHeaders') ?? '{}'))
+  let entries: [string, string][] = []
+  try {
+    const raw = localStorage.getItem('requestHeaders')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        entries = parsed
+      }
+    }
+  } catch {
+    // ignore parse error
+  }
+  const headers = new Headers(entries)
+  if (!headers.get('authorization')) {
+    headers.set('authorization', DEFAULT_TWITTER_BEARER)
+  }
+  if (!headers.get('x-csrf-token')) {
+    const csrf = getCsrfTokenFromCookie()
+    if (csrf) {
+      headers.set('x-csrf-token', csrf)
+    }
+  }
+  return headers
 }
 
 export class ExpectedError extends Error {
@@ -38,15 +68,14 @@ export interface BatchBlockUsersProcessedMeta {
   result?: 'skip'
 }
 
-// don't know the rate limit, so limit 2s request once, refer to
-// https://devcommunity.x.com/t/what-is-the-rate-limit-on-post-request-and-post-blocks-create/102434/2
-// https://github.com/d60/twikit/blob/main/ratelimits.md
+// Rate-limited batch blocking
 export async function batchBlockUsers<T extends User>(
   users: T[] | (() => T[]),
   options: {
     onProcessed: (user: T, meta: BatchBlockUsersProcessedMeta) => Promise<void>
     signal: AbortSignal
-    blockUser: (user: T) => Promise<'skip' | undefined>
+    blockUser: (user: T) => Promise<'skip' | undefined | void>
+    delay?: () => number
   },
 ) {
   const startTime = Date.now()
@@ -60,8 +89,9 @@ export async function batchBlockUsers<T extends User>(
     let error: unknown
     let result: undefined | 'skip'
     try {
-      result = await options.blockUser(user)
-      if (result === 'skip') {
+      const res = await options.blockUser(user)
+      if (res === 'skip') {
+        result = 'skip'
         skipCount++
       }
     } catch (err) {
@@ -79,6 +109,12 @@ export async function batchBlockUsers<T extends User>(
       error,
       result,
     })
+    if (options.delay && i < _users.length - 1 && !options.signal.aborted) {
+      const waitMs = options.delay()
+      if (waitMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, waitMs))
+      }
+    }
     _users = typeof users === 'function' ? users() : users
   }
 }

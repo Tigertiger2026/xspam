@@ -135,7 +135,7 @@ export async function unblockUser(userId: string) {
       'x-twitter-auth-type': 'OAuth2Session',
       'x-twitter-client-language': 'en',
     }),
-    referrer: 'https://x.com/cryptocishanjia',
+    referrer: location.href || 'https://x.com',
     referrerPolicy: 'strict-origin-when-cross-origin',
     body: 'user_id=' + userId,
     method: 'POST',

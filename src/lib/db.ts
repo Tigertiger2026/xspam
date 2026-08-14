@@ -852,16 +852,10 @@ class SpamUserDAO {
   }> {
     const tx = dbStore.idb.transaction('spamUsers', 'readonly')
     const store = tx.objectStore('spamUsers')
-    let cursorRequest = await store.openCursor(null, 'prev')
-    
-    if (params.cursor && cursorRequest) {
-      while (cursorRequest && cursorRequest.key !== params.cursor) {
-        cursorRequest = await cursorRequest.continue()
-      }
-      if (cursorRequest) {
-        cursorRequest = await cursorRequest.continue()
-      }
-    }
+    const range = params.cursor
+      ? IDBKeyRange.upperBound(params.cursor, true)
+      : null
+    let cursorRequest = await store.openCursor(range, 'prev')
     
     const data: SpamUser[] = []
     while (cursorRequest && data.length < params.limit) {

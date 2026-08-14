@@ -22,7 +22,7 @@
 <Sidebar>
   <div class="flex flex-col h-full py-4">
     <div class="px-6 font-extrabold text-xl pb-8 text-indigo-600 flex items-center justify-between">
-      <span class="cursor-pointer" onclick={() => onClickMenuUrl('/')}>Mass Block</span>
+      <button type="button" class="cursor-pointer text-left focus:outline-none" onclick={() => onClickMenuUrl('/')}>Mass Block</button>
     </div>
     <div class="flex-1 flex flex-col gap-2 px-3">
       {#each content as item (item.title)}

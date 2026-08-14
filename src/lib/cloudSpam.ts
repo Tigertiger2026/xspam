@@ -1,12 +1,13 @@
 import dayjs from 'dayjs'
 import { dbApi } from './db'
 import { SPAM_DATA_METADATA_URL } from './constants'
-import { flowFilterCacheMap } from './shared'
+import { eventMessage, flowFilterCacheMap } from './shared'
 import { messager } from './messaging'
 import { parse, stringifyAsync } from './serializer'
 
 const CLOUD_SYNCED_AT_KEY = 'lastCloudSpamSyncedAt'
 const CLOUD_VERSION_KEY = 'cloudDataVersion'
+const CLOUD_GENERATED_AT_KEY = 'cloudDataGeneratedAt'
 const CLOUD_SOURCE_KEY = 'cloudDataSource'
 const LEGACY_CURSOR_KEY = 'lastSyncAt'
 
@@ -160,6 +161,18 @@ export function collectRequiredDeltas(
   return prevVersion === metadata.currentVersion ? required : null
 }
 
+export function isCloudSnapshotCurrent(params: {
+  localVersion: string
+  localGeneratedAt?: number
+  metadata: CloudSpamMetadata
+}): boolean {
+  return (
+    params.localVersion === params.metadata.currentVersion &&
+    typeof params.localGeneratedAt === 'number' &&
+    params.localGeneratedAt >= params.metadata.generatedAt
+  )
+}
+
 async function applyFullSnapshot(snapshot: CloudSpamFullSnapshot) {
   const records = snapshot.records.filter((it) => it.status === 'spam')
   await dbApi.spamUsers.replaceCloudSpamSnapshot(records)
@@ -198,17 +211,22 @@ export async function syncCloudSpamList(options?: {
 }): Promise<CloudSpamSyncResult> {
   const store = await browser.storage.local.get<{
     [CLOUD_VERSION_KEY]?: string
-  }>(CLOUD_VERSION_KEY)
+    [CLOUD_GENERATED_AT_KEY]?: number
+  }>([CLOUD_VERSION_KEY, CLOUD_GENERATED_AT_KEY])
   const localVersion = options?.force ? '' : (store[CLOUD_VERSION_KEY] || '')
+  const localGeneratedAt = options?.force
+    ? undefined
+    : store[CLOUD_GENERATED_AT_KEY]
   const metadata = await fetchJson<CloudSpamMetadata>(
     'metadata fetch',
     SPAM_DATA_METADATA_URL,
   )
 
-  if (localVersion && localVersion === metadata.currentVersion) {
+  if (isCloudSnapshotCurrent({ localVersion, localGeneratedAt, metadata })) {
     await browser.storage.local.set({
       [CLOUD_SYNCED_AT_KEY]: Date.now(),
       [CLOUD_VERSION_KEY]: metadata.currentVersion,
+      [CLOUD_GENERATED_AT_KEY]: metadata.generatedAt,
       [CLOUD_SOURCE_KEY]: 'github-release',
     })
     return {
@@ -265,11 +283,13 @@ export async function syncCloudSpamList(options?: {
   await browser.storage.local.set({
     [CLOUD_SYNCED_AT_KEY]: Date.now(),
     [CLOUD_VERSION_KEY]: metadata.currentVersion,
+    [CLOUD_GENERATED_AT_KEY]: metadata.generatedAt,
     [CLOUD_SOURCE_KEY]: 'github-release',
   })
   await browser.storage.local.remove(LEGACY_CURSOR_KEY)
 
   flowFilterCacheMap.clear()
+  eventMessage.sendMessage('reloadSpamContext', undefined).catch(() => {})
 
   return {
     inserted,

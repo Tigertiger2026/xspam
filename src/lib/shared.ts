@@ -31,6 +31,8 @@ export async function initSpamContext(): Promise<void> {
       dbApi.spamUsers.getAllActiveIds(),
       dbApi.spamUsers.getAllActiveHandles(),
     ])
+    spamContext.spamUsers.clear()
+    spamContext.spamScreenNames.clear()
     allIds.forEach((id) => spamContext.spamUsers.add(id))
     allHandles.forEach((handle) => spamContext.spamScreenNames.add(handle))
     console.debug('[XSpam] initSpamContext: loaded', allIds.length, 'user IDs,', allHandles.length, 'screen names')
@@ -63,4 +65,5 @@ export const eventMessage = defineCustomEventMessage<{
     options?: ExternalToast
   }) => void
   showBlockUserToast: (user: Pick<User, 'name' | 'screen_name'>) => void
+  reloadSpamContext: () => void
 }>()

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { messager } from '$lib/messaging'
   import SearchBlockPage from './pages/search-and-block/page.svelte'
   import BlockedUsersPage from './pages/search-and-block/blocked/page.svelte'

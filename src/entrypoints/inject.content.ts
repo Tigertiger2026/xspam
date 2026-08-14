@@ -47,10 +47,8 @@ import { blockUser, getUserByScreenName } from '$lib/api/twitter'
 function blockClientEvent(): FetchMiddleware {
   return async (c, next) => {
     if (
-      [
-        'https://x.com/i/api/1.1/jot/client_event.json',
-        'https://x.com/i/api/1.1/keyregistry/register',
-      ].includes(c.req.url)
+      c.req.url.includes('/i/api/1.1/jot/client_event.json') ||
+      c.req.url.includes('/i/api/1.1/keyregistry/register')
     ) {
       c.res = new Response(
         JSON.stringify({
@@ -234,9 +232,9 @@ function handleNotifications(): FetchMiddleware {
   return async (c, next) => {
     await next()
     if (
-      !new URLPattern(
-        'https://x.com/i/api/2/notifications/(all|verified).json',
-      ).test(c.req.url)
+      !new URLPattern({
+        pathname: '/i/api/2/notifications/(all|verified).json',
+      }).test(c.req.url)
     ) {
       return
     }
@@ -266,9 +264,10 @@ function handleTweets(): FetchMiddleware {
   return async (c, next) => {
     await next()
     if (
-      !new URLPattern(
-        'https://x.com/i/api/graphql/*/(HomeTimeline|TweetDetail|UserTweets|UserTweetsAndReplies|CommunityTweetsTimeline|HomeLatestTimeline|SearchTimeline|Bookmarks|ListLatestTweetsTimeline|UserMedia|Likes|UserHighlightsTweets|TweetResultByRestId)',
-      ).test(c.req.url)
+      !new URLPattern({
+        pathname:
+          '/i/api/graphql/*/(HomeTimeline|TweetDetail|UserTweets|UserTweetsAndReplies|CommunityTweetsTimeline|HomeLatestTimeline|SearchTimeline|Bookmarks|ListLatestTweetsTimeline|UserMedia|Likes|UserHighlightsTweets|TweetResultByRestId)',
+      }).test(c.req.url)
     ) {
       return
     }
@@ -375,6 +374,7 @@ function observe() {
       location.pathname.endsWith('/following') ||
       location.pathname.endsWith('/followers')
     ) {
+      let hasUserChanges = false
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
           if (
@@ -387,12 +387,16 @@ function observe() {
             ) !== null
           ) {
             processUserElement(node)
+            hasUserChanges = true
           }
-          eachUserElementsThrottle()
         })
       })
+      if (hasUserChanges) {
+        eachUserElementsThrottle()
+      }
       return
     }
+    let hasTweetChanges = false
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
         if (
@@ -403,10 +407,13 @@ function observe() {
         ) {
           addBlockButtonInTweet(node)
           hideSpamTweetElement(node)
+          hasTweetChanges = true
         }
-        eachTweetElementsThrottle()
       })
     })
+    if (hasTweetChanges) {
+      eachTweetElementsThrottle()
+    }
   })
 
   observer.observe(document.body, {
@@ -438,6 +445,17 @@ export default defineContentScript({
     await dbPromise
     // Preload ALL spam user IDs and screen names from IndexedDB into memory
     await initSpamContext()
+
+    // Listen for sync/update events from ISOLATED world UI to refresh in-memory spam context
+    eventMessage.onMessage('reloadSpamContext', async () => {
+      console.debug('[XSpam] Received reloadSpamContext event, refreshing in-memory spam context...')
+      await initSpamContext()
+      flowFilterCacheMap.clear()
+      document.querySelectorAll<HTMLElement>(
+        '[data-testid="cellInnerDiv"]:has([data-testid="reply"])',
+      ).forEach(hideSpamTweetElement)
+    })
+
     await wait(() => !!document.body)
     observe()
     // Also run DOM backup filter on all existing tweet elements

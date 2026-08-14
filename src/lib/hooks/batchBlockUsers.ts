@@ -104,7 +104,14 @@ export const batchBlockUsersMutation = async <T extends User>(options: {
     let lastBlockedIndex = 0
     let realBlockedCount = 0
 
+    const speedRange = getSettings().blockSpeedRange || [1, 2]
     await batchBlockUsers(users, {
+      delay: () => {
+        const [min, max] = speedRange
+        if (min === 0 && max === 0) return 0
+        const sec = Math.max(min + Math.random() * (Math.max(max, min) - min), 0.2)
+        return Math.round(sec * 1000)
+      },
       onProcessed: async (user, meta) => {
         if (controller.signal.aborted) {
           return

@@ -1,23 +1,52 @@
 import { dbApi, Tweet, User } from './db'
-import { eventMessage } from './shared'
+import { eventMessage, spamContext } from './shared'
 import { getUserByScreenName } from './api/twitter'
 
 export function extractCurrentUserId(): string | undefined {
-  return /"id_str":"(\d*)"/.exec(document.body.innerHTML)?.[1]
+  // 1. Try reading from twid cookie (fast & accurate: twid=u%3D123456789 or twid="u=123456789")
+  if (typeof document !== 'undefined' && document.cookie) {
+    const cookieMatch = /(?:^|;\s*)twid=(?:u%3D|u%3d|"u=)?(\d+)/i.exec(document.cookie)
+    if (cookieMatch?.[1]) {
+      return cookieMatch[1]
+    }
+  }
+  // 2. Try looking in script tags
+  if (typeof document !== 'undefined') {
+    const scripts = document.querySelectorAll('script')
+    for (const script of scripts) {
+      if (script.textContent && (script.textContent.includes('current_user') || script.textContent.includes('screen_name'))) {
+        const idMatch = /"id_str":"(\d+)"/.exec(script.textContent)
+        if (idMatch?.[1]) return idMatch[1]
+      }
+    }
+  }
+  return undefined
 }
 
 export function getCurrentUser(): User {
+  const currentId = extractCurrentUserId()
   const match = document.documentElement.innerHTML.match(
     /"name":"(.*?)","screen_name":"(.*?)","id_str":"(\d+?)"/,
   )
   if (!match) {
+    if (currentId) {
+      return {
+        id: currentId,
+        name: '',
+        screen_name: '',
+        blocking: false,
+        updated_at: new Date().toISOString(),
+      } as User
+    }
     throw new Error('Failed to extract user information')
   }
   const [, name, screen_name, id] = match
   return {
-    id,
+    id: currentId || id,
     name,
     screen_name,
+    blocking: false,
+    updated_at: new Date().toISOString(),
   } as User
 }
 
@@ -71,11 +100,11 @@ export function addBlockButtonInTweet(tweetElement: HTMLElement) {
     return
   }
   const grokButton = tweetElement.querySelector('button[aria-label*="Grok"]')
-  if (!grokButton && window.innerWidth >= 500) {
-    return
-  }
+  const caretButton = tweetElement.querySelector('button[data-testid="caret"]')
   const moreBar =
     grokButton?.parentElement ??
+    caretButton?.closest('div:has(>button[data-testid="caret"])') ??
+    caretButton?.parentElement ??
     tweetElement.querySelector('div:has(>div>button[data-testid="caret"])')
   if (!moreBar) {
     return
@@ -95,10 +124,13 @@ export function addBlockButtonInTweet(tweetElement: HTMLElement) {
     `
   const refSvg =
     grokButton?.querySelector('svg') ??
-    moreBar.querySelector('button[data-testid="caret"] svg')
+    moreBar.querySelector('button[data-testid="caret"] svg') ??
+    moreBar.querySelector('svg')
   if (refSvg) {
-    customButton.style.stroke = getComputedStyle(refSvg).color
-    customButton.addEventListener('click', async () => {
+    customButton.style.stroke = getComputedStyle(refSvg).color || 'currentColor'
+  }
+  customButton.addEventListener('click', async () => {
+    try {
       const { tweetId } = extractTweet(tweetElement)
       const tweet = await dbApi.tweets.get(tweetId)
       if (!tweet) {
@@ -118,13 +150,20 @@ export function addBlockButtonInTweet(tweetElement: HTMLElement) {
       if (!user) {
         return
       }
+      spamContext.spamUsers.add(user.id)
+      if (user.screen_name) {
+        spamContext.spamScreenNames.add(user.screen_name.toLowerCase())
+      }
       eventMessage.sendMessage('QuickBlock', {
         user,
         tweet,
         report: request,
+        elementToHide: tweetElement,
       })
-    })
-  }
+    } catch (err) {
+      console.error('[XSpam] Failed to quick block from tweet', err)
+    }
+  })
   if (moreBar.parentNode) {
     moreBar.parentNode.insertBefore(customButton, moreBar)
   }
@@ -176,10 +215,14 @@ export function addBlockButtonInUser(
       source: 'manual_block' as const,
       createdAt: Date.now(),
     }
+    spamContext.spamUsers.add(user.id)
+    if (user.screen_name) {
+      spamContext.spamScreenNames.add(user.screen_name.toLowerCase())
+    }
+    userElement.style.display = 'none'
     eventMessage.sendMessage('QuickBlock', {
       user,
       report: request,
-      elementToHide: userElement,
     })
   })
 }

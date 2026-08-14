@@ -236,7 +236,11 @@ export function sharedSpamFilter(): TweetFilter {
   return {
     name: 'sharedSpam',
     userCondition: (user: User) => {
-      if (spamContext.spamUsers.has(user.id)) {
+      if (
+        spamContext.spamUsers.has(user.id) ||
+        (user.screen_name &&
+          spamContext.spamScreenNames.has(user.screen_name.toLowerCase()))
+      ) {
         return 'hide'
       }
       return 'next'

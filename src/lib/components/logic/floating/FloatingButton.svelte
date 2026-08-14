@@ -72,7 +72,7 @@
   })
 </script>
 
-{#if $settings.showFloatingButton}
+{#if $settings.showFloatingButton ?? true}
   <div
     id="mass-block-twitter-floating-button"
     style="top: {top}px"

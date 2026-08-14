@@ -3,30 +3,21 @@ import path from 'path'
 
 export default defineConfig({
   srcDir: 'src',
-  outDir: '../../dist',
+  outDir: 'dist',
   extensionApi: 'chrome',
   modules: ['@wxt-dev/module-svelte'],
   manifestVersion: 3,
   manifest: (env) => {
-    const apiUrl =
-      process.env.VITE_API_URL || 'https://mass-block-twitter.rxliuli.com'
     const spamDataMetadataUrl =
       process.env.VITE_SPAM_DATA_METADATA_URL ||
       'https://github.com/Tigertiger2026/xspam/releases/download/spam-data-latest/metadata.json'
     const hostPermissions = new Set<string>([
       'https://x.com/**',
-      'https://mass-block-twitter.rxliuli.com/**',
       'https://github.com/*',
       'https://objects.githubusercontent.com/*',
       'https://github-releases.githubusercontent.com/*',
       'https://release-assets.githubusercontent.com/*',
     ])
-    try {
-      const parsedApiUrl = new URL(apiUrl)
-      hostPermissions.add(`${parsedApiUrl.origin}/*`)
-    } catch {
-      // Ignore invalid local override; runtime fetch will fail clearly.
-    }
     try {
       const parsedMetadataUrl = new URL(spamDataMetadataUrl)
       hostPermissions.add(`${parsedMetadataUrl.origin}/*`)
@@ -39,7 +30,7 @@ export default defineConfig({
       name: '__MSG_extName__',
       description: '__MSG_extDescription__',
       default_locale: 'en',
-      permissions: ['storage'],
+      permissions: ['storage', 'tabs'],
       web_accessible_resources: [],
       action: {
         default_icon: {

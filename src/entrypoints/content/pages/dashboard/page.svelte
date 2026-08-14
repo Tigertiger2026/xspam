@@ -126,12 +126,6 @@
         blockUser: async (user) => {
           await blockUser({ id: user.id })
         },
-        getAuthInfo: async () => {
-          const authInfo = (
-            await browser.storage.local.get<{ authInfo: any }>('authInfo')
-          ).authInfo
-          return authInfo!
-        },
         onProcessed: async (user, meta) => {
           if (meta.error) {
             await dbApi.spamUsers.markBlockFailed(user.id)

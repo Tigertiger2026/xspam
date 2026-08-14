@@ -12,7 +12,6 @@ import {
 import { middleware, MiddlewareHandler } from '$lib/util/middleware'
 import ms from 'ms'
 import { downloadUsersToCSV } from '$lib/util/downloadUsersToCSV'
-import { getAuthInfo } from '$lib/hooks/useAuthInfo.svelte'
 
 export async function onBatchUnblockProcessed(
   context: ExecuteOperationContext<User, void>,
@@ -116,33 +115,6 @@ const progressHandler: Handler = async ({ context, toastId }, next) => {
   })
   await next()
 }
-const NOT_PRO_LIMIT = 1500
-const notProLimitHandler: Handler = async ({ context }, next) => {
-  const authInfo = await getAuthInfo()
-  if (authInfo?.isPro) {
-    await next()
-    return
-  }
-  if (context.items.length >= NOT_PRO_LIMIT) {
-    toast.info(
-      tP('blocked-users.toast.export.notProLimit', {
-        values: { count: NOT_PRO_LIMIT },
-      }),
-      {
-        duration: Number.POSITIVE_INFINITY,
-        action: {
-          label: tP('common.actions.upgrade'),
-          onClick: () => {
-            window.open('https://mass-block-twitter.rxliuli.com/pricing')
-          },
-        },
-      },
-    )
-    context.controller.abort()
-    return
-  }
-  await next()
-}
 export async function onExportBlockedUsersProcessed(
   context: QueryOperationContext<User>,
   toastId: string | number,
@@ -154,7 +126,6 @@ export async function onExportBlockedUsersProcessed(
     .use(errorHandler)
     .use(maxRequestsHandler)
     .use(progressHandler)
-    .use(notProLimitHandler)
     .run()
 }
 
